@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 32" fill="none">
+  <defs>
+    <linearGradient id="g" x1="4" x2="28" y1="3" y2="29" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3bb8be"/>
+      <stop offset="1" stop-color="#3a93b6"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="9" fill="url(#g)"/>
+  <path d="M13.4 7.2 h5.2 a1.2 1.2 0 0 1 1.2 1.2 v4 h4 a1.2 1.2 0 0 1 1.2 1.2 v5.2 a1.2 1.2 0 0 1 -1.2 1.2 h-4 v4 a1.2 1.2 0 0 1 -1.2 1.2 h-5.2 a1.2 1.2 0 0 1 -1.2 -1.2 v-4 h-4 a1.2 1.2 0 0 1 -1.2 -1.2 v-5.2 a1.2 1.2 0 0 1 1.2 -1.2 h4 v-4 a1.2 1.2 0 0 1 1.2 -1.2 z" fill="#fff" fill-opacity="0.16"/>
+  <path d="M6.5 16 H11 l1.6 -3.4 2.6 6.4 2 -3.6 1.4 2 H25.5" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="42" y="22" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" letter-spacing="-0.4" fill="#1d2b33">Medisync</text>
+</svg>
