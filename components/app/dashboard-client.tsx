@@ -83,6 +83,7 @@ export function DashboardClient({
   billing,
   calendarEvents,
   weekDays,
+  isAdmin,
 }: {
   stats: DStat[];
   schedule: ScheduleSlot[];
@@ -96,6 +97,7 @@ export function DashboardClient({
   billing: Billing;
   calendarEvents: CalEvent[];
   weekDays: WeekDay[];
+  isAdmin: boolean;
 }) {
   const { t, lang } = useLang();
   const [selected, setSelected] = useState<string | null>(patients[0]?.id ?? null);
@@ -355,41 +357,43 @@ export function DashboardClient({
           </div>
 
           {/* Revenue & visits + appointment mix */}
-          <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-display text-[15px] font-semibold tracking-tight">{t(revenueMeta.title)}</h3>
-                  <p className="text-xs text-muted-foreground">{t(revenueMeta.subtitle)}</p>
+          <div className={cn("grid gap-6", isAdmin && "lg:grid-cols-[1.5fr_1fr]")}>
+            {isAdmin && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-display text-[15px] font-semibold tracking-tight">{t(revenueMeta.title)}</h3>
+                    <p className="text-xs text-muted-foreground">{t(revenueMeta.subtitle)}</p>
+                  </div>
+                  <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", revenueMeta.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+                    {revenueMeta.delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                    {Math.abs(revenueMeta.delta).toFixed(1)}%
+                  </span>
                 </div>
-                <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", revenueMeta.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-                  {revenueMeta.delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                  {Math.abs(revenueMeta.delta).toFixed(1)}%
-                </span>
+                <div className="mt-3 flex items-baseline gap-3">
+                  <p className="tnum text-2xl font-bold leading-none">{revenueMeta.total}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {lang === "tr" ? `8 haftada · ${revenueMeta.totalVisits} ziyaret` : `over 8 weeks · ${revenueMeta.totalVisits} visits`}
+                  </span>
+                </div>
+                <div className="mt-4">
+                  <AreaChart
+                    data={revenue.map((r) => r.value)}
+                    bars={revenue.map((r) => r.visits)}
+                    labels={revenue.map((r) => r.label)}
+                    height={160}
+                  />
+                </div>
+                <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-3 rounded-full bg-primary" /> {lang === "tr" ? "Gelir" : "Revenue"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-3 rounded-sm" style={{ background: "color-mix(in oklch, var(--seg-2) 30%, transparent)" }} /> {lang === "tr" ? "Ziyaretler" : "Visits"}
+                  </span>
+                </div>
               </div>
-              <div className="mt-3 flex items-baseline gap-3">
-                <p className="tnum text-2xl font-bold leading-none">{revenueMeta.total}</p>
-                <span className="text-xs text-muted-foreground">
-                  {lang === "tr" ? `8 haftada · ${revenueMeta.totalVisits} ziyaret` : `over 8 weeks · ${revenueMeta.totalVisits} visits`}
-                </span>
-              </div>
-              <div className="mt-4">
-                <AreaChart
-                  data={revenue.map((r) => r.value)}
-                  bars={revenue.map((r) => r.visits)}
-                  labels={revenue.map((r) => r.label)}
-                  height={160}
-                />
-              </div>
-              <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-3 rounded-full bg-primary" /> {lang === "tr" ? "Gelir" : "Revenue"}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-3 rounded-sm" style={{ background: "color-mix(in oklch, var(--seg-2) 30%, transparent)" }} /> {lang === "tr" ? "Ziyaretler" : "Visits"}
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Appointment mix donut */}
             <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -422,38 +426,40 @@ export function DashboardClient({
           </div>
 
           {/* Appointment calendar (compact week strip) + billing */}
-          <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className={cn("grid gap-6", isAdmin && "lg:grid-cols-[1.5fr_1fr]")}>
             <WeekStrip calendarEvents={calendarEvents} weekDays={weekDays} />
             {/* Billing snapshot */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display text-[15px] font-semibold tracking-tight">
-                  {lang === "tr" ? "Faturalandırma" : "Billing"}
-                </h3>
-                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between rounded-xl border border-border bg-success/[0.04] p-3">
-                  <span className="text-[13px] font-medium">{t(billing.collectedToday.label)}</span>
-                  <span className="tnum text-[15px] font-bold text-success">{billing.collectedToday.value}</span>
+            {isAdmin && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-[15px] font-semibold tracking-tight">
+                    {lang === "tr" ? "Faturalandırma" : "Billing"}
+                  </h3>
+                  <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3">
-                  <div>
-                    <p className="text-[13px] font-medium">{t(billing.outstanding.label)}</p>
-                    <p className="text-[11px] text-muted-foreground">{billing.outstanding.count} {lang === "tr" ? "fatura" : "invoices"}</p>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-success/[0.04] p-3">
+                    <span className="text-[13px] font-medium">{t(billing.collectedToday.label)}</span>
+                    <span className="tnum text-[15px] font-bold text-success">{billing.collectedToday.value}</span>
                   </div>
-                  <span className="tnum text-[15px] font-bold">{billing.outstanding.value}</span>
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3">
+                    <div>
+                      <p className="text-[13px] font-medium">{t(billing.outstanding.label)}</p>
+                      <p className="text-[11px] text-muted-foreground">{billing.outstanding.count} {lang === "tr" ? "fatura" : "invoices"}</p>
+                    </div>
+                    <span className="tnum text-[15px] font-bold">{billing.outstanding.value}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3">
+                    <span className="text-[13px] font-medium">{t(billing.claims.label)}</span>
+                    <span className="tnum text-[15px] font-bold">{billing.claims.value}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3">
-                  <span className="text-[13px] font-medium">{t(billing.claims.label)}</span>
-                  <span className="tnum text-[15px] font-bold">{billing.claims.value}</span>
-                </div>
+                <button className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted">
+                  {lang === "tr" ? "Faturalara git" : "Open billing"}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
-              <button className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted">
-                {lang === "tr" ? "Faturalara git" : "Open billing"}
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+            )}
           </div>
         </div>
 

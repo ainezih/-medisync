@@ -162,6 +162,31 @@ async function main() {
     { actor: "Dr. Okafor", action: "reçete yazdı:", target: "Levothyroxine", tone: "neutral", occurred_at: atTime(-1, 13, 10) },
   ]);
 
+  console.log("Backfilling patients.last_visit_at / next_appt_at…");
+  const { data: visitMaxes } = await supabase.from("visits").select("patient_id, occurred_at");
+  const lastVisitByPatient = {};
+  for (const v of visitMaxes ?? []) {
+    if (!lastVisitByPatient[v.patient_id] || v.occurred_at > lastVisitByPatient[v.patient_id]) {
+      lastVisitByPatient[v.patient_id] = v.occurred_at;
+    }
+  }
+  const { data: futureAppts } = await supabase
+    .from("appointments")
+    .select("patient_id, starts_at")
+    .gt("starts_at", new Date().toISOString());
+  const nextApptByPatient = {};
+  for (const a of futureAppts ?? []) {
+    if (!nextApptByPatient[a.patient_id] || a.starts_at < nextApptByPatient[a.patient_id]) {
+      nextApptByPatient[a.patient_id] = a.starts_at;
+    }
+  }
+  for (const [patientId, lastVisit] of Object.entries(lastVisitByPatient)) {
+    await supabase.from("patients").update({ last_visit_at: lastVisit }).eq("id", patientId);
+  }
+  for (const [patientId, nextAppt] of Object.entries(nextApptByPatient)) {
+    await supabase.from("patients").update({ next_appt_at: nextAppt }).eq("id", patientId);
+  }
+
   console.log("Done. Seeded", PATIENTS.length, "patients with appointments, visits, prescriptions, docs, invoices and activity.");
 }
 

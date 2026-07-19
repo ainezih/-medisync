@@ -10,10 +10,17 @@ import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
-export function Sidebar() {
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+export function Sidebar({ fullName, title, isAdmin }: { fullName: string; title: string; isAdmin: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t, lang } = useLang();
+  const navGroups = isAdmin ? appConfig.navGroups : appConfig.navGroups.filter((g) => g.label.en !== "Finance");
 
   async function handleLogout() {
     const supabase = createClient();
@@ -45,7 +52,7 @@ export function Sidebar() {
 
       {/* Grouped nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
-        {appConfig.navGroups.map((group) => (
+        {navGroups.map((group) => (
           <div key={t(group.label)} className="mb-4">
             <p className="label-mono px-3 pb-1.5 pt-2 text-sidebar-muted">{t(group.label)}</p>
             <div className="space-y-0.5">
@@ -101,16 +108,18 @@ export function Sidebar() {
 
       {/* Settings + Support */}
       <div className="space-y-0.5 px-3 pb-2">
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors",
-            isActive("/settings") ? "nav-pill-active text-foreground" : "text-foreground/70 hover:bg-muted hover:text-foreground",
-          )}
-        >
-          <Settings className="h-[17px] w-[17px] text-muted-foreground" />
-          {lang === "tr" ? "Ayarlar" : "Settings"}
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/settings"
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors",
+              isActive("/settings") ? "nav-pill-active text-foreground" : "text-foreground/70 hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Settings className="h-[17px] w-[17px] text-muted-foreground" />
+            {lang === "tr" ? "Ayarlar" : "Settings"}
+          </Link>
+        )}
         <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground">
           <LifeBuoy className="h-[17px] w-[17px] text-muted-foreground" />
           {lang === "tr" ? "Destek" : "Support"}
@@ -121,11 +130,11 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-2 shadow-pill">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ backgroundImage: "var(--grad-brand)" }}>
-            DR
+            {initialsOf(fullName)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold">Dr. Daniela Reyes</p>
-            <p className="truncate text-[11.5px] text-muted-foreground">{lang === "tr" ? "Aile hekimi" : "Family medicine"}</p>
+            <p className="truncate text-[13px] font-semibold">{fullName}</p>
+            {title && <p className="truncate text-[11.5px] text-muted-foreground">{title}</p>}
           </div>
           <button
             onClick={handleLogout}
