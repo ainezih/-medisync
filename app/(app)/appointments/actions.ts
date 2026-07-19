@@ -12,14 +12,20 @@ export async function sendReminderAction(appointmentId: string, lang: "tr" | "en
     return { ok: false as const, error: lang === "tr" ? "Hastanın telefon numarası kayıtlı değil." : "Patient has no phone number on file." };
   }
   try {
-    await sendAppointmentReminder({
+    const { channel } = await sendAppointmentReminder({
       to: appt.patientPhone,
       patientName: appt.patient,
       startsAt: appt.startsAt,
       provider: appt.provider,
       lang,
     });
-    await logActivity("System", lang === "tr" ? "SMS hatırlatma gönderdi:" : "sent an SMS reminder to", appt.patient, "info");
+    const channelLabel = channel === "whatsapp" ? "WhatsApp" : "SMS";
+    await logActivity(
+      "System",
+      lang === "tr" ? `${channelLabel} hatırlatma gönderdi:` : `sent a ${channelLabel} reminder to`,
+      appt.patient,
+      "info",
+    );
     revalidatePath("/dashboard");
     return { ok: true as const };
   } catch (e) {
