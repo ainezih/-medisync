@@ -76,6 +76,17 @@ export function formatRelative(d: Date | string) {
   return formatDate(date);
 }
 
+/** Formats digits as a Turkish mobile number while typing: "+90 5XX XXX XX XX". */
+export function formatPhoneTR(raw: string) {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("90")) digits = digits.slice(2);
+  else if (digits.startsWith("0")) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+
+  const parts = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 8), digits.slice(8, 10)].filter(Boolean);
+  return parts.length ? `+90 ${parts.join(" ")}` : "";
+}
+
 export function initials(name: string) {
   return name
     .split(" ")

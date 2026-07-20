@@ -1,35 +1,194 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, LayoutGrid, MessageSquareText, Video, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, LayoutGrid, MessageSquareText, Video, Loader2, X } from "lucide-react";
 import { useLang } from "@/components/i18n/language-provider";
 import { StatusPill, TypeChip } from "@/components/app/clinic";
+import { Input, Label } from "@/components/ui/input";
 import { cn, formatTime, minutesOf } from "@/lib/utils";
-import { STATUS_LABEL, TYPE_LABEL, type CalEvent, type ScheduleSlot } from "@/lib/data/types";
+import { STATUS_LABEL, TYPE_LABEL, type CalEvent, type ScheduleSlot, type ApptType } from "@/lib/data/types";
 import type { WeekDay } from "@/lib/data/calendar";
-import { sendReminderAction, joinTelehealthAction } from "@/app/(app)/appointments/actions";
+import { sendReminderAction, joinTelehealthAction, createAppointmentAction } from "@/app/(app)/appointments/actions";
 
 const CALENDAR_HOURS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
 const GRID_START = minutesOf("08:00");
 const GRID_END = minutesOf("16:00");
 const GRID_SPAN = GRID_END - GRID_START;
 
+const APPT_TYPE_OPTIONS: { value: ApptType; tr: string; en: string }[] = [
+  { value: "checkup", tr: "Kontrol", en: "Check-up" },
+  { value: "follow-up", tr: "Takip", en: "Follow-up" },
+  { value: "new-patient", tr: "Yeni hasta", en: "New patient" },
+  { value: "telehealth", tr: "Teletıp", en: "Telehealth" },
+  { value: "procedure", tr: "İşlem", en: "Procedure" },
+  { value: "vaccine", tr: "Aşı", en: "Vaccine" },
+];
+
+export function NewAppointmentModal({
+  open,
+  onClose,
+  patientOptions,
+  members,
+}: {
+  open: boolean;
+  onClose: () => void;
+  patientOptions: { id: string; name: string }[];
+  members: { id: string; name: string }[];
+}) {
+  const { lang } = useLang();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
+
+  const today = new Date();
+  const defaultDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const form = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const res = await createAppointmentAction({
+        patientId: String(form.get("patient") ?? ""),
+        providerId: String(form.get("provider") ?? ""),
+        date: String(form.get("date") ?? ""),
+        time: String(form.get("time") ?? ""),
+        durationMin: Number(form.get("duration") ?? 30),
+        type: String(form.get("type") ?? "checkup"),
+        room: String(form.get("room") ?? ""),
+        lang,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      onClose();
+      router.refresh();
+    });
+  }
+
+  const selectCls =
+    "flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors";
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-soft"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold tracking-tight">
+            {lang === "tr" ? "Yeni randevu" : "New appointment"}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label={lang === "tr" ? "Kapat" : "Close"}
+            className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {patientOptions.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {lang === "tr"
+              ? "Önce bir hasta eklemelisin — Hastalar sayfasından \"Yeni hasta\" ile başla."
+              : "Add a patient first — start from the Patients page with \"New patient\"."}
+          </p>
+        ) : (
+          <form onSubmit={submit} className="mt-4 space-y-3.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="na-patient">{lang === "tr" ? "Hasta *" : "Patient *"}</Label>
+              <select id="na-patient" name="patient" required defaultValue="" className={selectCls}>
+                <option value="" disabled>
+                  {lang === "tr" ? "Seç…" : "Select…"}
+                </option>
+                {patientOptions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="na-provider">{lang === "tr" ? "Sağlayıcı *" : "Provider *"}</Label>
+              <select id="na-provider" name="provider" required defaultValue={members[0]?.id ?? ""} className={selectCls}>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="na-date">{lang === "tr" ? "Tarih *" : "Date *"}</Label>
+                <Input id="na-date" name="date" type="date" required defaultValue={defaultDate} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="na-time">{lang === "tr" ? "Saat *" : "Time *"}</Label>
+                <Input id="na-time" name="time" type="time" required defaultValue="09:00" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="na-duration">{lang === "tr" ? "Süre (dk)" : "Duration (min)"}</Label>
+                <Input id="na-duration" name="duration" type="number" min={5} max={240} step={5} defaultValue={30} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="na-type">{lang === "tr" ? "Tür" : "Type"}</Label>
+                <select id="na-type" name="type" defaultValue="checkup" className={selectCls}>
+                  {APPT_TYPE_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {lang === "tr" ? t.tr : t.en}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="na-room">{lang === "tr" ? "Oda (opsiyonel)" : "Room (optional)"}</Label>
+              <Input id="na-room" name="room" placeholder={lang === "tr" ? "Örn. 2" : "e.g. 2"} />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <button
+              type="submit"
+              disabled={pending}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {lang === "tr" ? "Randevuyu oluştur" : "Book appointment"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AppointmentsClient({
   calendarEvents,
   schedule,
   providers,
   weekDays,
+  patientOptions,
+  members,
 }: {
   calendarEvents: CalEvent[];
   schedule: ScheduleSlot[];
   providers: string[];
   weekDays: WeekDay[];
+  patientOptions: { id: string; name: string }[];
+  members: { id: string; name: string }[];
 }) {
   const { lang } = useLang();
   const [view, setView] = useState<"week" | "day">("week");
   const todayKey = weekDays.find((d) => d.today)?.key ?? weekDays[0]?.key ?? "mon";
   const [activeDay, setActiveDay] = useState(todayKey);
   const [selected, setSelected] = useState<CalEvent | null>(null);
+  const [showNew, setShowNew] = useState(false);
   const [pending, startTransition] = useTransition();
   const [actionMsg, setActionMsg] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
@@ -99,7 +258,10 @@ export function AppointmentsClient({
               {lang === "tr" ? "Gün" : "Day"}
             </button>
           </div>
-          <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90">
+          <button
+            onClick={() => setShowNew(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+          >
             <Plus className="h-4 w-4" />
             {lang === "tr" ? "Randevu" : "New appointment"}
           </button>
@@ -132,6 +294,9 @@ export function AppointmentsClient({
       ) : (
         <DayView day={activeDay} setDay={setActiveDay} events={dayEvents(activeDay)} onSelect={selectEvent} weekDays={weekDays} todayKey={todayKey} schedule={schedule} />
       )}
+
+      <NewAppointmentModal open={showNew} onClose={() => setShowNew(false)} patientOptions={patientOptions} members={members} />
+
 
       {/* Selected event detail */}
       {selected && (

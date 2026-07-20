@@ -28,6 +28,8 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
     const email = String(form.get("email") ?? "");
     const password = String(form.get("password") ?? "");
     const fullName = String(form.get("name") ?? "");
+    const clinicName = String(form.get("clinic") ?? "");
+    const profession = String(form.get("profession") ?? "other");
 
     const supabase = createClient();
 
@@ -44,7 +46,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: { data: { full_name: fullName, clinic_name: clinicName, profession } },
       });
       if (error) {
         setError(ui.authError);
@@ -132,10 +134,41 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             <>
               <form onSubmit={enter} className="space-y-4">
                 {!isLogin && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="name">{ui.fullName}</Label>
-                    <Input id="name" name="name" placeholder={lang === "tr" ? "Adın Soyadın" : "Jane Doe"} />
-                  </div>
+                  <>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name">{ui.fullName}</Label>
+                      <Input id="name" name="name" placeholder={lang === "tr" ? "Adın Soyadın" : "Jane Doe"} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="clinic">{lang === "tr" ? "Klinik / muayenehane adı" : "Clinic / practice name"}</Label>
+                      <Input
+                        id="clinic"
+                        name="clinic"
+                        placeholder={lang === "tr" ? "Örn. Kaya Psikoloji" : "e.g. Kaya Psychology"}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="profession">{lang === "tr" ? "Mesleğin" : "Your profession"}</Label>
+                      <select
+                        id="profession"
+                        name="profession"
+                        required
+                        defaultValue=""
+                        className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors"
+                      >
+                        <option value="" disabled>
+                          {lang === "tr" ? "Seç…" : "Select…"}
+                        </option>
+                        <option value="doctor">{lang === "tr" ? "Doktor" : "Doctor"}</option>
+                        <option value="dentist">{lang === "tr" ? "Diş Hekimi" : "Dentist"}</option>
+                        <option value="psychologist">{lang === "tr" ? "Psikolog" : "Psychologist"}</option>
+                        <option value="dietitian">{lang === "tr" ? "Diyetisyen" : "Dietitian"}</option>
+                        <option value="physiotherapist">{lang === "tr" ? "Fizyoterapist" : "Physiotherapist"}</option>
+                        <option value="other">{lang === "tr" ? "Diğer" : "Other"}</option>
+                      </select>
+                    </div>
+                  </>
                 )}
                 <div className="space-y-1.5">
                   <Label htmlFor="email">{ui.email}</Label>

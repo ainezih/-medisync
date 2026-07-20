@@ -1,4 +1,4 @@
-import { getTodaySchedule, getWeekCalendar, getProviders } from "@/lib/data/appointments";
+import { getTodaySchedule, getWeekCalendar, getProviders, listPatientOptions, listClinicMembers } from "@/lib/data/appointments";
 import { getWeekDays } from "@/lib/data/calendar";
 import { AppointmentsClient } from "@/components/app/appointments-client";
 
@@ -8,11 +8,22 @@ export default async function AppointmentsPage() {
   monday.setHours(0, 0, 0, 0);
   monday.setDate(monday.getDate() + (monday.getDay() === 0 ? -6 : 1 - monday.getDay()));
 
-  const [schedule, calendarEvents, providers] = await Promise.all([
+  const [schedule, calendarEvents, providers, patientOptions, members] = await Promise.all([
     getTodaySchedule(),
     getWeekCalendar(monday),
     getProviders(),
+    listPatientOptions(),
+    listClinicMembers(),
   ]);
 
-  return <AppointmentsClient calendarEvents={calendarEvents} schedule={schedule} providers={providers} weekDays={weekDays} />;
+  return (
+    <AppointmentsClient
+      calendarEvents={calendarEvents}
+      schedule={schedule}
+      providers={providers}
+      weekDays={weekDays}
+      patientOptions={patientOptions}
+      members={members}
+    />
+  );
 }

@@ -115,6 +115,36 @@ export async function getProviders(): Promise<string[]> {
   return set.size ? Array.from(set) : FALLBACK_PROVIDERS;
 }
 
+/** Lightweight id+name roster for pickers (RLS keeps it clinic-scoped). */
+export async function listPatientOptions(): Promise<{ id: string; name: string }[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("patients").select("id, name").order("name");
+  if (error) throw new Error(`listPatientOptions: ${error.message}`);
+  return data ?? [];
+}
+
+/**
+ * The provider picker when booking. Admins see the whole clinic staff and can
+ * book on anyone's behalf; everyone else only sees themselves — they can only
+ * book their own appointments.
+ */
+export async function listClinicMembers(): Promise<{ id: string; name: string }[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: me } = await supabase.from("profiles").select("id, full_name, is_admin").eq("id", user.id).maybeSingle();
+  if (!me?.is_admin) {
+    return me?.full_name ? [{ id: me.id, name: me.full_name }] : [];
+  }
+
+  const { data, error } = await supabase.from("profiles").select("id, full_name").order("full_name");
+  if (error) throw new Error(`listClinicMembers: ${error.message}`);
+  return (data ?? []).map((p) => ({ id: p.id, name: p.full_name ?? "" })).filter((p) => p.name);
+}
+
 /** Single appointment with patient contact info — used by the Twilio/Daily server actions. */
 export async function getAppointmentForAction(id: string): Promise<AppointmentRow & { patientPhone: string }> {
   const supabase = await createClient();

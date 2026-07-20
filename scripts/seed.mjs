@@ -16,6 +16,19 @@ if (!url || !serviceKey) {
 
 const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
 
+// Multi-tenant: seed data lives in the shared demo workspace.
+async function demoClinicId() {
+  const { data: existing } = await supabase.from("clinics").select("id").eq("name", "Demo Klinik").maybeSingle();
+  if (existing) return existing.id;
+  const { data: created, error } = await supabase
+    .from("clinics")
+    .insert({ name: "Demo Klinik", profession: "doctor" })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return created.id;
+}
+
 function atTime(daysFromToday, hh, mm) {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -45,12 +58,13 @@ const PATIENTS = [
 ];
 
 async function main() {
-  console.log("Seeding patients…");
+  const clinicId = await demoClinicId();
+  console.log("Seeding patients into Demo Klinik", clinicId, "…");
   const { data: insertedPatients, error: patientErr } = await supabase
     .from("patients")
     .upsert(
-      PATIENTS.map(({ key: _key, ...p }) => p),
-      { onConflict: "mrn" },
+      PATIENTS.map(({ key: _key, ...p }) => ({ ...p, clinic_id: clinicId })),
+      { onConflict: "clinic_id,mrn" },
     )
     .select("id, mrn");
   if (patientErr) throw patientErr;
@@ -61,8 +75,10 @@ async function main() {
     if (row) idByKey[p.key] = row.id;
   }
 
+  const withClinic = (rows) => rows.map((r) => ({ ...r, clinic_id: clinicId }));
+
   console.log("Seeding visits, prescriptions, documents…");
-  await supabase.from("visits").insert([
+  await supabase.from("visits").insert(withClinic([
     { patient_id: idByKey.p1, occurred_at: atTime(-30, 8, 30), reason: "HT takibi", provider: "Dr. Reyes", note: "Kan basıncı sınırda yüksek; lisinopril dozu artırıldı." },
     { patient_id: idByKey.p2, occurred_at: atTime(-45, 9, 0), reason: "Kontrol", provider: "Dr. Reyes", note: "Astım iyi kontrol altında." },
     { patient_id: idByKey.p3, occurred_at: atTime(-3, 9, 30), reason: "Yeni hasta — genel", provider: "Dr. Okafor", note: "Kayıt tamamlandı; başlangıç tetkikleri istendi." },
@@ -70,23 +86,23 @@ async function main() {
     { patient_id: idByKey.p5, occurred_at: atTime(-60, 11, 0), reason: "Migren yönetimi", provider: "Dr. Okafor", note: "Sıklık azaldı." },
     { patient_id: idByKey.p9, occurred_at: atTime(-16, 14, 0), reason: "Kemik yoğunluğu takibi", provider: "Dr. Reyes", note: "D vitamini eklendi." },
     { patient_id: idByKey.p12, occurred_at: atTime(-9, 15, 30), reason: "KOAH takibi", provider: "Dr. Okafor", note: "Stabil; inhaler rejimi optimize edildi." },
-  ]);
+  ]));
 
-  await supabase.from("prescriptions").insert([
+  await supabase.from("prescriptions").insert(withClinic([
     { patient_id: idByKey.p1, drug: "Lisinopril", dose: "20 mg", freq: "günde 1", status: "active", prescribed_at: atTime(-30, 8, 40) },
     { patient_id: idByKey.p1, drug: "Metformin", dose: "500 mg", freq: "günde 2", status: "active", prescribed_at: atTime(-120, 9, 25) },
     { patient_id: idByKey.p2, drug: "Albuterol", dose: "90 mcg", freq: "gerektiğinde", status: "active", prescribed_at: atTime(-45, 9, 10) },
     { patient_id: idByKey.p3, drug: "Cetirizine", dose: "10 mg", freq: "günde 1", status: "pending", prescribed_at: atTime(-3, 9, 35) },
     { patient_id: idByKey.p9, drug: "Alendronate", dose: "70 mg", freq: "haftada 1", status: "active", prescribed_at: atTime(-16, 14, 10) },
     { patient_id: idByKey.p10, drug: "Sertraline", dose: "50 mg", freq: "günde 1", status: "active", prescribed_at: atTime(-5, 10, 10) },
-  ]);
+  ]));
 
-  await supabase.from("patient_docs").insert([
+  await supabase.from("patient_docs").insert(withClinic([
     { patient_id: idByKey.p1, name: "Lab — Lipid Panel", kind: "Laboratuvar", doc_date: new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10) },
     { patient_id: idByKey.p4, name: "Lab — Lipid Panel", kind: "Laboratuvar", doc_date: new Date(Date.now() - 20 * 86400000).toISOString().slice(0, 10) },
     { patient_id: idByKey.p8, name: "MRI — Lumbar", kind: "Görüntüleme", doc_date: new Date(Date.now() - 40 * 86400000).toISOString().slice(0, 10) },
     { patient_id: idByKey.p12, name: "Chest X-Ray", kind: "Görüntüleme", doc_date: new Date(Date.now() - 9 * 86400000).toISOString().slice(0, 10) },
-  ]);
+  ]));
 
   console.log("Seeding appointments (today + this week)…");
   const today = [
@@ -131,7 +147,7 @@ async function main() {
     status: s.status,
   }));
 
-  await supabase.from("appointments").insert([...today, ...restOfWeek]);
+  await supabase.from("appointments").insert(withClinic([...today, ...restOfWeek]));
 
   console.log("Seeding invoices (revenue chart, last 8 weeks)…");
   const invoices = [];
@@ -153,14 +169,14 @@ async function main() {
     { patient_id: idByKey.p8, amount: "240.00", status: "unpaid", issued_at: atTime(-10, 13, 30) },
     { patient_id: idByKey.p11, amount: "160.00", status: "unpaid", issued_at: atTime(-25, 11, 0) },
   );
-  await supabase.from("invoices").insert(invoices);
+  await supabase.from("invoices").insert(withClinic(invoices));
 
   console.log("Seeding activity log…");
-  await supabase.from("activity_log").insert([
+  await supabase.from("activity_log").insert(withClinic([
     { actor: "Dr. Reyes", action: "muayeneyi tamamladı:", target: "Eleanor Whitfield", tone: "success", occurred_at: atTime(0, 8, 58) },
     { actor: "Nurse Patel", action: "kayıt yaptı:", target: "James O'Connor", tone: "info", occurred_at: atTime(0, 11, 2) },
     { actor: "Dr. Okafor", action: "reçete yazdı:", target: "Levothyroxine", tone: "neutral", occurred_at: atTime(-1, 13, 10) },
-  ]);
+  ]));
 
   console.log("Backfilling patients.last_visit_at / next_appt_at…");
   const { data: visitMaxes } = await supabase.from("visits").select("patient_id, occurred_at");

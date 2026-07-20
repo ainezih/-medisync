@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Plus } from "lucide-react";
 import appConfig from "@/app.config";
@@ -20,10 +21,13 @@ export function Topbar() {
       </span>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <button className="hidden h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 sm:inline-flex">
+        <Link
+          href="/appointments"
+          className="hidden h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 sm:inline-flex"
+        >
           <Plus className="h-4 w-4" />
           {lang === "tr" ? "Randevu" : "New appt"}
-        </button>
+        </Link>
         <LanguageToggle className="mr-1" />
         <button
           aria-label="Notifications"

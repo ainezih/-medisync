@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Filter, ArrowUpDown, UserPlus } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Filter, ArrowUpDown, UserPlus, X, Loader2 } from "lucide-react";
 import { Avatar, PatientDrawer } from "@/components/app/clinic";
 import { useLang } from "@/components/i18n/language-provider";
-import { cn, formatShortDate } from "@/lib/utils";
+import { Input, Label } from "@/components/ui/input";
+import { cn, formatShortDate, formatPhoneTR } from "@/lib/utils";
 import { SEX_LABEL, PATIENT_STATUS_LABEL, type Patient, type PatientStatus } from "@/lib/data/types";
+import { createPatientAction } from "@/app/(app)/patients/actions";
 
 const STATUS_FILTERS: { key: PatientStatus | "all"; tr: string; en: string }[] = [
   { key: "all", tr: "Tümü", en: "All" },
@@ -22,11 +25,125 @@ const TONE: Record<PatientStatus, string> = {
   inactive: "text-muted-foreground bg-muted",
 };
 
+export function NewPatientModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { lang } = useLang();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const form = new FormData(e.currentTarget);
+    const ageRaw = String(form.get("age") ?? "").trim();
+    const sexRaw = String(form.get("sex") ?? "");
+    startTransition(async () => {
+      const res = await createPatientAction({
+        name: String(form.get("name") ?? ""),
+        age: ageRaw ? Number(ageRaw) : null,
+        sex: sexRaw === "male" || sexRaw === "female" || sexRaw === "other" ? sexRaw : null,
+        phone: String(form.get("phone") ?? "").replace(/\s+/g, ""),
+        email: String(form.get("email") ?? ""),
+        conditions: String(form.get("conditions") ?? ""),
+        lang,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      onClose();
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-soft"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold tracking-tight">
+            {lang === "tr" ? "Yeni hasta" : "New patient"}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label={lang === "tr" ? "Kapat" : "Close"}
+            className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <form onSubmit={submit} className="mt-4 space-y-3.5">
+          <div className="space-y-1.5">
+            <Label htmlFor="np-name">{lang === "tr" ? "Ad Soyad *" : "Full name *"}</Label>
+            <Input id="np-name" name="name" required placeholder={lang === "tr" ? "Ayşe Yılmaz" : "Jane Doe"} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="np-age">{lang === "tr" ? "Yaş" : "Age"}</Label>
+              <Input id="np-age" name="age" type="number" min={0} max={120} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="np-sex">{lang === "tr" ? "Cinsiyet" : "Sex"}</Label>
+              <select
+                id="np-sex"
+                name="sex"
+                defaultValue=""
+                className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+              >
+                <option value="">{lang === "tr" ? "Belirtilmedi" : "Not specified"}</option>
+                <option value="female">{lang === "tr" ? "Kadın" : "Female"}</option>
+                <option value="male">{lang === "tr" ? "Erkek" : "Male"}</option>
+                <option value="other">{lang === "tr" ? "Diğer" : "Other"}</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="np-phone">{lang === "tr" ? "Telefon (hatırlatmalar için)" : "Phone (for reminders)"}</Label>
+            <Input
+              id="np-phone"
+              name="phone"
+              type="tel"
+              inputMode="numeric"
+              placeholder="+90 5xx xxx xx xx"
+              maxLength={17}
+              onChange={(e) => {
+                e.target.value = formatPhoneTR(e.target.value);
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="np-email">E-posta</Label>
+            <Input id="np-email" name="email" type="email" placeholder="ornek@eposta.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="np-conditions">{lang === "tr" ? "Tanılar (virgülle ayır)" : "Conditions (comma-separated)"}</Label>
+            <Input id="np-conditions" name="conditions" placeholder={lang === "tr" ? "Örn. Migren, Hipertansiyon" : "e.g. Migraine, Hypertension"} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <button
+            type="submit"
+            disabled={pending}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {lang === "tr" ? "Hastayı kaydet" : "Save patient"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function PatientsClient({ patients }: { patients: Patient[] }) {
   const { t, lang } = useLang();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PatientStatus | "all">("all");
   const [selected, setSelected] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -65,7 +182,10 @@ export function PatientsClient({ patients }: { patients: Patient[] }) {
                 <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                 {lang === "tr" ? "Dışa aktar" : "Export"}
               </button>
-              <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90">
+              <button
+                onClick={() => setShowNew(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
                 <UserPlus className="h-4 w-4" />
                 {lang === "tr" ? "Yeni hasta" : "New patient"}
               </button>
@@ -177,7 +297,22 @@ export function PatientsClient({ patients }: { patients: Patient[] }) {
                   {rows.length === 0 && (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                        {lang === "tr" ? "Eşleşen hasta yok." : "No matching patients."}
+                        {patients.length === 0 ? (
+                          <span className="space-y-2">
+                            <span className="block">
+                              {lang === "tr" ? "Henüz hasta kaydın yok." : "No patients yet."}
+                            </span>
+                            <button
+                              onClick={() => setShowNew(true)}
+                              className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                              {lang === "tr" ? "İlk hastanı ekle" : "Add your first patient"}
+                            </button>
+                          </span>
+                        ) : (
+                          lang === "tr" ? "Eşleşen hasta yok." : "No matching patients."
+                        )}
                       </td>
                     </tr>
                   )}
@@ -194,6 +329,8 @@ export function PatientsClient({ patients }: { patients: Patient[] }) {
           </aside>
         )}
       </div>
+
+      <NewPatientModal open={showNew} onClose={() => setShowNew(false)} />
     </div>
   );
 }

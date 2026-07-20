@@ -137,10 +137,13 @@ export function DashboardClient({
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
                 {lang === "tr" ? "Bugün" : "Today"}
               </button>
-              <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90">
+              <Link
+                href="/appointments"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
                 <Plus className="h-4 w-4" />
                 {lang === "tr" ? "Randevu" : "New appointment"}
-              </button>
+              </Link>
             </div>
           </div>
 
