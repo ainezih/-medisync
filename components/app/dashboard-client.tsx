@@ -10,6 +10,9 @@ import {
   ChevronDown,
   Clock,
   Pill,
+  Brain,
+  Utensils,
+  Dumbbell,
   Stethoscope,
   CalendarDays,
   CircleDollarSign,
@@ -26,6 +29,8 @@ import type {
   QueueEntry,
   Patient,
   RecentRx,
+  RecentCareNote,
+  CareNoteKind,
   DActivity,
   CalEvent,
   ApptType,
@@ -76,6 +81,9 @@ export function DashboardClient({
   queue,
   patients,
   recentRx,
+  recentCareNotes,
+  careKind,
+  profession,
   revenue,
   revenueMeta,
   apptMix,
@@ -90,6 +98,9 @@ export function DashboardClient({
   queue: QueueEntry[];
   patients: Patient[];
   recentRx: RecentRx[];
+  recentCareNotes: RecentCareNote[];
+  careKind: CareNoteKind | null;
+  profession: string | null;
   revenue: { label: string; value: number; visits: number }[];
   revenueMeta: RevenueMeta;
   apptMix: { type: ApptType; value: number }[];
@@ -469,12 +480,12 @@ export function DashboardClient({
         {/* ── Right rail: waiting room + prescriptions + activity ──── */}
         {drawerOpen && selectedPatient ? (
           <aside className="animate-float-up space-y-5 xl:sticky xl:top-2 xl:self-start">
-            <PatientDrawer patient={selectedPatient} onClose={() => setDrawerOpen(false)} />
+            <PatientDrawer patient={selectedPatient} profession={profession} onClose={() => setDrawerOpen(false)} />
           </aside>
         ) : (
           <aside className="animate-float-up space-y-5 xl:sticky xl:top-2 xl:self-start">
             <WaitingRoom queue={queue} inRoom={inRoom} setInRoom={setInRoom} />
-            <Prescriptions recentRx={recentRx} />
+            {careKind ? <CareNotesPanel notes={recentCareNotes} kind={careKind} /> : <Prescriptions recentRx={recentRx} />}
             <ActivityFeed activity={activity} />
           </aside>
         )}
@@ -483,7 +494,7 @@ export function DashboardClient({
       {drawerOpen && selectedPatient && (
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           <WaitingRoom queue={queue} inRoom={inRoom} setInRoom={setInRoom} />
-          <Prescriptions recentRx={recentRx} />
+          {careKind ? <CareNotesPanel notes={recentCareNotes} kind={careKind} /> : <Prescriptions recentRx={recentRx} />}
           <ActivityFeed activity={activity} />
         </div>
       )}
@@ -576,6 +587,54 @@ function Prescriptions({ recentRx }: { recentRx: RecentRx[] }) {
             </div>
             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize", tone[r.status])}>
               {r.status}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Recent care-notes panel — Faz 4, doctor/dentist's Prescriptions equivalent
+   for psychologist/dietitian/physiotherapist clinics ─────────────────────── */
+const CARE_NOTE_ICON: Record<CareNoteKind, typeof Brain> = {
+  session_note: Brain,
+  nutrition_plan: Utensils,
+  exercise_plan: Dumbbell,
+};
+
+const CARE_NOTE_PANEL_TITLE: Record<CareNoteKind, L> = {
+  session_note: { tr: "Son seans notları", en: "Recent session notes" },
+  nutrition_plan: { tr: "Son beslenme planları", en: "Recent nutrition plans" },
+  exercise_plan: { tr: "Son egzersiz planları", en: "Recent exercise plans" },
+};
+
+function CareNotesPanel({ notes, kind }: { notes: RecentCareNote[]; kind: CareNoteKind }) {
+  const { t, lang } = useLang();
+  const tone: Record<string, string> = {
+    active: "text-success bg-success/10",
+    completed: "text-muted-foreground bg-muted",
+  };
+  const KindIcon = CARE_NOTE_ICON[kind];
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-[15px] font-semibold tracking-tight">{t(CARE_NOTE_PANEL_TITLE[kind])}</h3>
+        <KindIcon className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="mt-3.5 space-y-2.5">
+        {notes.length === 0 && <p className="text-[12.5px] text-muted-foreground">{lang === "tr" ? "Henüz kayıt yok." : "No entries yet."}</p>}
+        {notes.map((n) => (
+          <div key={n.id} className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <KindIcon className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold leading-tight">{n.summary || "—"}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{n.patient}</p>
+            </div>
+            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize", tone[n.status])}>
+              {n.status}
             </span>
           </div>
         ))}

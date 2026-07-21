@@ -102,6 +102,44 @@ export interface Rx {
   prescribed: string;
 }
 
+/**
+ * Faz 4 — profession-specific modules. One table (`care_notes`), one `kind`
+ * discriminator; columns a given kind doesn't use just stay empty, same
+ * pattern as the rest of this schema (see file header).
+ */
+export type CareNoteKind = "session_note" | "nutrition_plan" | "exercise_plan";
+
+export const CARE_NOTE_KIND_LABEL: Record<CareNoteKind, L> = {
+  session_note: { tr: "Seans notu", en: "Session note" },
+  nutrition_plan: { tr: "Beslenme planı", en: "Nutrition plan" },
+  exercise_plan: { tr: "Egzersiz planı", en: "Exercise plan" },
+};
+
+export interface CareNote {
+  id: string;
+  kind: CareNoteKind;
+  occurredAt: string;
+  status: "active" | "completed";
+  note: string;
+  mood: string;
+  goal: string;
+  targetWeightKg: number | null;
+  caloriesPerDay: number | null;
+  mealPlan: string;
+  exercisePlan: string;
+  progressNote: string;
+}
+
+export interface RecentCareNote {
+  id: string;
+  patient: string;
+  initials: string;
+  kind: CareNoteKind;
+  summary: string;
+  status: "active" | "completed";
+  at: string;
+}
+
 export interface PatientDoc {
   id: string;
   name: string;
@@ -127,6 +165,7 @@ export interface Patient {
   visits: Visit[];
   rx: Rx[];
   docs: PatientDoc[];
+  careNotes: CareNote[];
 }
 
 export interface RecentRx {

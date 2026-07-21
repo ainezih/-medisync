@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { DStat, RecentRx, DActivity, ApptType } from "@/lib/data/types";
+import type { DStat, RecentRx, RecentCareNote, CareNoteKind, DActivity, ApptType } from "@/lib/data/types";
 
 /** Top stat row — counts computed live, no fabricated week-over-week deltas. */
 export async function getStats(): Promise<DStat[]> {
@@ -49,6 +49,32 @@ export async function getRecentRx(limit = 5): Promise<RecentRx[]> {
       freq: r.freq,
       status: r.status as RecentRx["status"],
       at: r.prescribed_at,
+    };
+  });
+}
+
+/** Faz 4 — recent entries for a profession's care module (session notes, nutrition/exercise plans). */
+export async function getRecentCareNotes(kind: CareNoteKind, limit = 5): Promise<RecentCareNote[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("care_notes")
+    .select("id, kind, occurred_at, status, note, mood, goal, meal_plan, exercise_plan, patients(name, initials)")
+    .eq("kind", kind)
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`getRecentCareNotes: ${error.message}`);
+  return (data ?? []).map((r) => {
+    const p = Array.isArray(r.patients) ? r.patients[0] : r.patients;
+    const summarySource = r.kind === "session_note" ? r.goal || r.mood : r.kind === "nutrition_plan" ? r.meal_plan : r.exercise_plan;
+    const summary = (summarySource || r.note || "").slice(0, 60);
+    return {
+      id: r.id,
+      patient: p?.name ?? "",
+      initials: p?.initials ?? "",
+      kind: r.kind as CareNoteKind,
+      summary,
+      status: r.status as RecentCareNote["status"],
+      at: r.occurred_at,
     };
   });
 }

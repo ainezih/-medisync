@@ -16,11 +16,36 @@ function initialsOf(name: string) {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-export function Sidebar({ fullName, title, isAdmin }: { fullName: string; title: string; isAdmin: boolean }) {
+/**
+ * Faz 4 — the "Prescriptions" nav entry (identified by its "pill" icon,
+ * the only one in the static config) becomes the profession's own module
+ * for professions that have one; doctor/dentist/other keep Prescriptions.
+ */
+const CARE_NAV_OVERRIDE: Record<string, { label: { tr: string; en: string }; icon: string }> = {
+  psychologist: { label: { tr: "Seans Notları", en: "Session notes" }, icon: "brain" },
+  dietitian: { label: { tr: "Beslenme Planı", en: "Nutrition plan" }, icon: "utensils" },
+  physiotherapist: { label: { tr: "Egzersiz Planı", en: "Exercise plan" }, icon: "dumbbell" },
+};
+
+export function Sidebar({
+  fullName,
+  title,
+  isAdmin,
+  profession,
+}: {
+  fullName: string;
+  title: string;
+  isAdmin: boolean;
+  profession?: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { t, lang } = useLang();
-  const navGroups = isAdmin ? appConfig.navGroups : appConfig.navGroups.filter((g) => g.label.en !== "Finance");
+  const careOverride = profession ? CARE_NAV_OVERRIDE[profession] : undefined;
+  const navGroups = (isAdmin ? appConfig.navGroups : appConfig.navGroups.filter((g) => g.label.en !== "Finance")).map((group) => ({
+    ...group,
+    items: group.items.map((item) => (item.icon === "pill" && careOverride ? { ...item, label: careOverride.label, icon: careOverride.icon } : item)),
+  }));
 
   async function handleLogout() {
     const supabase = createClient();

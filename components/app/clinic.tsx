@@ -1,16 +1,20 @@
 "use client";
 
-import { X, Phone, Mail, Pill, FileText, ClipboardList, AlertTriangle, Activity, CalendarClock } from "lucide-react";
+import { useState } from "react";
+import { X, Phone, Mail, Pill, FileText, ClipboardList, AlertTriangle, Activity, CalendarClock, Brain, Utensils, Dumbbell, Plus } from "lucide-react";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatShortDate } from "@/lib/utils";
 import {
   STATUS_LABEL,
   TYPE_LABEL,
   SEX_LABEL,
+  CARE_NOTE_KIND_LABEL,
   type ApptStatus,
   type ApptType,
   type Patient,
+  type CareNoteKind,
 } from "@/lib/data/types";
+import { NewCareNoteModal } from "@/components/app/care-note-form";
 
 /* ── SVG-initial avatar (no photos, ever) ─────────────────────────────────── */
 export function Avatar({
@@ -70,15 +74,44 @@ const RX_TONE: Record<string, string> = {
   completed: "text-muted-foreground bg-muted",
 };
 
+const CARE_NOTE_TONE: Record<string, string> = {
+  active: "text-success bg-success/10",
+  completed: "text-muted-foreground bg-muted",
+};
+
+/** Which profession gets its own module instead of the generic Prescriptions section. */
+const PROFESSION_CARE_KIND: Record<string, CareNoteKind> = {
+  psychologist: "session_note",
+  dietitian: "nutrition_plan",
+  physiotherapist: "exercise_plan",
+};
+
+const CARE_NOTE_ICON: Record<CareNoteKind, typeof Brain> = {
+  session_note: Brain,
+  nutrition_plan: Utensils,
+  exercise_plan: Dumbbell,
+};
+
+function careNoteSummary(n: Patient["careNotes"][number]): string {
+  if (n.kind === "session_note") return n.goal || n.mood || n.note || "—";
+  if (n.kind === "nutrition_plan") return n.mealPlan || n.note || "—";
+  return n.exercisePlan || n.note || "—";
+}
+
 /* ── Patient chart drawer ─────────────────────────────────────────────────── */
 export function PatientDrawer({
   patient,
+  profession,
   onClose,
 }: {
   patient: Patient;
+  /** Signed-in provider's profession — picks the profile-appropriate module (Faz 4). */
+  profession?: string | null;
   onClose: () => void;
 }) {
   const { t, lang } = useLang();
+  const [showNewNote, setShowNewNote] = useState(false);
+  const careKind = profession ? PROFESSION_CARE_KIND[profession] : undefined;
 
   return (
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -194,34 +227,81 @@ export function PatientDrawer({
         </div>
       </div>
 
-      {/* Prescriptions */}
-      <div>
-        <p className="label-mono mb-2 flex items-center gap-1.5 text-muted-foreground">
-          <Pill className="h-3.5 w-3.5" /> {lang === "tr" ? "Reçeteler" : "Prescriptions"}
-        </p>
-        {patient.rx.length ? (
-          <div className="space-y-1.5">
-            {patient.rx.map((r) => (
-              <div key={r.id} className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary">
-                  <Pill className="h-3.5 w-3.5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold leading-tight">
-                    {r.drug} <span className="tnum text-muted-foreground">{r.dose}</span>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">{r.freq}</p>
-                </div>
-                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize", RX_TONE[r.status])}>
-                  {r.status}
-                </span>
-              </div>
-            ))}
+      {/* Prescriptions, or a profession-specific module (Faz 4) */}
+      {careKind ? (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="label-mono flex items-center gap-1.5 text-muted-foreground">
+              {(() => {
+                const KindIcon = CARE_NOTE_ICON[careKind];
+                return <KindIcon className="h-3.5 w-3.5" />;
+              })()}
+              {t(CARE_NOTE_KIND_LABEL[careKind])}
+            </p>
+            <button
+              onClick={() => setShowNewNote(true)}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              <Plus className="h-3 w-3" /> {lang === "tr" ? "Ekle" : "Add"}
+            </button>
           </div>
-        ) : (
-          <p className="text-[12px] text-muted-foreground">{lang === "tr" ? "Aktif reçete yok" : "No active prescriptions"}</p>
-        )}
-      </div>
+          {patient.careNotes.filter((n) => n.kind === careKind).length ? (
+            <div className="space-y-1.5">
+              {patient.careNotes
+                .filter((n) => n.kind === careKind)
+                .map((n) => {
+                  const KindIcon = CARE_NOTE_ICON[n.kind];
+                  return (
+                    <div key={n.id} className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                        <KindIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold leading-tight">{careNoteSummary(n)}</p>
+                        <p className="tnum text-[11px] text-muted-foreground">{formatShortDate(n.occurredAt)}</p>
+                      </div>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize", CARE_NOTE_TONE[n.status])}>
+                        {n.status}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <p className="text-[12px] text-muted-foreground">
+              {lang === "tr" ? "Henüz kayıt yok" : "No entries yet"}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div>
+          <p className="label-mono mb-2 flex items-center gap-1.5 text-muted-foreground">
+            <Pill className="h-3.5 w-3.5" /> {lang === "tr" ? "Reçeteler" : "Prescriptions"}
+          </p>
+          {patient.rx.length ? (
+            <div className="space-y-1.5">
+              {patient.rx.map((r) => (
+                <div key={r.id} className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2">
+                  <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary">
+                    <Pill className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold leading-tight">
+                      {r.drug} <span className="tnum text-muted-foreground">{r.dose}</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{r.freq}</p>
+                  </div>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize", RX_TONE[r.status])}>
+                    {r.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[12px] text-muted-foreground">{lang === "tr" ? "Aktif reçete yok" : "No active prescriptions"}</p>
+          )}
+        </div>
+      )}
 
       {/* Documents */}
       <div>
@@ -247,6 +327,16 @@ export function PatientDrawer({
       <button className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90">
         {lang === "tr" ? "Muayeneyi başlat" : "Open chart & start visit"}
       </button>
+
+      {careKind && (
+        <NewCareNoteModal
+          open={showNewNote}
+          onClose={() => setShowNewNote(false)}
+          patientId={patient.id}
+          patientName={patient.name}
+          kind={careKind}
+        />
+      )}
     </div>
   );
 }

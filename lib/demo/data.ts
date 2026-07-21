@@ -99,6 +99,7 @@ export const patients: Patient[] = [
       { id: "d1", name: "Lab — Lipid Panel", kind: "Laboratuvar", date: "2026-05-02" },
       { id: "d2", name: "ECG Report", kind: "Görüntüleme", date: "2026-05-02" },
     ],
+    careNotes: [],
   },
   {
     id: "p2", name: "Marcus Bennett", initials: "MB", age: 41, sex: "male",
@@ -115,6 +116,7 @@ export const patients: Patient[] = [
       { id: "rx3", drug: "Albuterol", dose: "90 mcg", freq: freqPrn, status: "active", prescribed: "2026-06-14T09:10:00Z" },
     ],
     docs: [{ id: "d3", name: "Spirometry", kind: "Laboratuvar", date: "2026-02-20" }],
+    careNotes: [],
   },
   {
     id: "p3", name: "Priya Nair", initials: "PN", age: 29, sex: "female",
@@ -128,6 +130,7 @@ export const patients: Patient[] = [
     ],
     rx: [],
     docs: [{ id: "d4", name: "Intake Form", kind: "Form", date: "2026-06-14" }],
+    careNotes: [],
   },
   {
     id: "p4", name: "Daniel Cho", initials: "DC", age: 53, sex: "male",
@@ -141,6 +144,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx4", drug: "Atorvastatin", dose: "10 mg", freq: freqDaily, status: "active", prescribed: "2026-05-28T15:10:00Z" }],
     docs: [{ id: "d5", name: "Lab — Lipid Panel", kind: "Laboratuvar", date: "2026-05-28" }],
+    careNotes: [],
   },
   {
     id: "p5", name: "Sofia Romano", initials: "SR", age: 34, sex: "female",
@@ -154,6 +158,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx5", drug: "Sumatriptan", dose: "50 mg", freq: freqPrn, status: "active", prescribed: "2026-04-11T11:10:00Z" }],
     docs: [],
+    careNotes: [],
   },
   {
     id: "p6", name: "James O'Connor", initials: "JO", age: 8, sex: "male",
@@ -167,6 +172,7 @@ export const patients: Patient[] = [
     ],
     rx: [],
     docs: [{ id: "d6", name: "Growth Chart", kind: "Form", date: "2026-06-01" }],
+    careNotes: [],
   },
   {
     id: "p7", name: "Aisha Rahman", initials: "AR", age: 46, sex: "female",
@@ -180,6 +186,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx6", drug: "Levothyroxine", dose: "75 mcg", freq: freqDaily, status: "active", prescribed: "2026-05-19T13:10:00Z" }],
     docs: [{ id: "d7", name: "Lab — TSH/T4", kind: "Laboratuvar", date: "2026-05-19" }],
+    careNotes: [],
   },
   {
     id: "p8", name: "Thomas Müller", initials: "TM", age: 58, sex: "male",
@@ -193,6 +200,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx7", drug: "Naproxen", dose: "500 mg", freq: freqBid, status: "completed", prescribed: "2026-03-30T13:40:00Z" }],
     docs: [{ id: "d8", name: "MRI — Lumbar", kind: "Görüntüleme", date: "2026-03-30" }],
+    careNotes: [],
   },
   {
     id: "p9", name: "Grace Lindqvist", initials: "GL", age: 72, sex: "female",
@@ -206,6 +214,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx8", drug: "Alendronate", dose: "70 mg", freq: "haftada 1", status: "active", prescribed: "2026-06-02T14:10:00Z" }],
     docs: [{ id: "d9", name: "DEXA Scan", kind: "Görüntüleme", date: "2026-06-02" }],
+    careNotes: [],
   },
   {
     id: "p10", name: "Hassan Demir", initials: "HD", age: 38, sex: "male",
@@ -219,6 +228,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx9", drug: "Sertraline", dose: "50 mg", freq: freqDaily, status: "active", prescribed: "2026-05-15T10:10:00Z" }],
     docs: [],
+    careNotes: [],
   },
   {
     id: "p11", name: "Olivia Carter", initials: "OC", age: 24, sex: "female",
@@ -232,6 +242,7 @@ export const patients: Patient[] = [
     ],
     rx: [],
     docs: [],
+    careNotes: [],
   },
   {
     id: "p12", name: "Robert Fields", initials: "RF", age: 61, sex: "male",
@@ -245,6 +256,7 @@ export const patients: Patient[] = [
     ],
     rx: [{ id: "rx10", drug: "Tiotropium", dose: "18 mcg", freq: freqDaily, status: "active", prescribed: "2026-06-09T15:40:00Z" }],
     docs: [{ id: "d10", name: "Chest X-Ray", kind: "Görüntüleme", date: "2026-06-09" }],
+    careNotes: [],
   },
 ];
 

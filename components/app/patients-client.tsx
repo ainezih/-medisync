@@ -138,7 +138,7 @@ export function NewPatientModal({ open, onClose }: { open: boolean; onClose: () 
   );
 }
 
-export function PatientsClient({ patients }: { patients: Patient[] }) {
+export function PatientsClient({ patients, profession }: { patients: Patient[]; profession?: string | null }) {
   const { t, lang } = useLang();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PatientStatus | "all">("all");
@@ -325,7 +325,7 @@ export function PatientsClient({ patients }: { patients: Patient[] }) {
         {/* Chart drawer */}
         {selectedPatient && (
           <aside className="animate-float-up xl:sticky xl:top-2 xl:self-start">
-            <PatientDrawer patient={selectedPatient} onClose={() => setSelected(null)} />
+            <PatientDrawer patient={selectedPatient} profession={profession} onClose={() => setSelected(null)} />
           </aside>
         )}
       </div>
