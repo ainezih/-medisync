@@ -29,6 +29,53 @@ export const TYPE_LABEL: Record<ApptType, L> = {
   vaccine: { tr: "Aşı", en: "Vaccine" },
 };
 
+/**
+ * Faz 4 — appointment-type wording by profession. `ApptType` itself is a
+ * fixed DB check constraint (supabase/migrations/0001_init.sql), so this
+ * only relabels/curates which of the 6 values a profession books and shows
+ * — doctor/dentist/other are untouched (fall through to TYPE_LABEL /
+ * every type). Historical data of a type not offered to a profession still
+ * renders fine: typeLabel() falls back to TYPE_LABEL for anything unlisted.
+ */
+export const PROFESSION_TYPE_LABEL: Partial<Record<string, Partial<Record<ApptType, L>>>> = {
+  psychologist: {
+    "new-patient": { tr: "İlk seans", en: "First session" },
+    "follow-up": { tr: "Takip seansı", en: "Follow-up session" },
+    checkup: { tr: "Değerlendirme", en: "Assessment" },
+    telehealth: { tr: "Online seans", en: "Online session" },
+  },
+  dietitian: {
+    "new-patient": { tr: "İlk görüşme", en: "First consultation" },
+    "follow-up": { tr: "Kontrol görüşmesi", en: "Follow-up consultation" },
+    checkup: { tr: "Değerlendirme", en: "Assessment" },
+    telehealth: { tr: "Online görüşme", en: "Online consultation" },
+  },
+  physiotherapist: {
+    "new-patient": { tr: "İlk değerlendirme", en: "Initial assessment" },
+    "follow-up": { tr: "Tedavi seansı", en: "Treatment session" },
+    checkup: { tr: "Kontrol", en: "Check-up" },
+    procedure: { tr: "Manuel tedavi", en: "Manual therapy" },
+    telehealth: { tr: "Online seans", en: "Online session" },
+  },
+};
+
+/** Which types a profession books, in display order. Unlisted professions get all 6, unchanged. */
+export const PROFESSION_APPT_TYPES: Partial<Record<string, ApptType[]>> = {
+  psychologist: ["new-patient", "follow-up", "checkup", "telehealth"],
+  dietitian: ["new-patient", "follow-up", "checkup", "telehealth"],
+  physiotherapist: ["new-patient", "follow-up", "checkup", "procedure", "telehealth"],
+};
+
+const ALL_APPT_TYPES: ApptType[] = ["checkup", "follow-up", "new-patient", "telehealth", "procedure", "vaccine"];
+
+export function typeLabel(type: ApptType, profession?: string | null): L {
+  return (profession && PROFESSION_TYPE_LABEL[profession]?.[type]) || TYPE_LABEL[type];
+}
+
+export function apptTypesFor(profession?: string | null): ApptType[] {
+  return (profession && PROFESSION_APPT_TYPES[profession]) || ALL_APPT_TYPES;
+}
+
 export const SEX_LABEL: Record<Sex, L> = {
   male: { tr: "Erkek", en: "Male" },
   female: { tr: "Kadın", en: "Female" },

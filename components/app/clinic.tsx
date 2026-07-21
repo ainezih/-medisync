@@ -6,9 +6,9 @@ import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatShortDate } from "@/lib/utils";
 import {
   STATUS_LABEL,
-  TYPE_LABEL,
   SEX_LABEL,
   CARE_NOTE_KIND_LABEL,
+  typeLabel,
   type ApptStatus,
   type ApptType,
   type Patient,
@@ -60,10 +60,10 @@ export function StatusPill({ status, lang }: { status: ApptStatus; lang: "tr" | 
 }
 
 /* ── Appointment-type chip ────────────────────────────────────────────────── */
-export function TypeChip({ type, lang }: { type: ApptType; lang: "tr" | "en" }) {
+export function TypeChip({ type, lang, profession }: { type: ApptType; lang: "tr" | "en"; profession?: string | null }) {
   return (
     <span className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground">
-      {TYPE_LABEL[type][lang]}
+      {typeLabel(type, profession)[lang]}
     </span>
   );
 }

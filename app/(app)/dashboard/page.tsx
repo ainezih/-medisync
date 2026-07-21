@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     getQueue(),
     listPatients(),
     careKind ? getRecentCareNotes(careKind) : getRecentRx(),
-    getStats(),
+    getStats(profession),
     getRevenueSeries(),
     getApptMix(),
     getActivity(),

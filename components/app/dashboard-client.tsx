@@ -22,7 +22,7 @@ import { AreaChart, DonutChart } from "@/components/app/charts";
 import { Avatar, StatusPill, TypeChip, PatientDrawer } from "@/components/app/clinic";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatTime, minutesOf, formatShortDate, formatRelative } from "@/lib/utils";
-import { STATUS_LABEL, TYPE_LABEL } from "@/lib/data/types";
+import { STATUS_LABEL, typeLabel } from "@/lib/data/types";
 import type {
   DStat,
   ScheduleSlot,
@@ -250,7 +250,7 @@ export function DashboardClient({
                             {slot.room ? ` · ${lang === "tr" ? "Oda" : "Room"} ${slot.room}` : ""}
                           </p>
                         </div>
-                        <TypeChip type={slot.type} lang={lang} />
+                        <TypeChip type={slot.type} lang={lang} profession={profession} />
                         <StatusPill status={slot.status} lang={lang} />
                       </div>
                       <div className="relative mt-1.5 ml-[38px] h-1.5 rounded-full bg-muted">
@@ -419,7 +419,7 @@ export function DashboardClient({
               ) : (
                 <div className="mt-4 flex items-center gap-5">
                   <div className="relative shrink-0">
-                    <DonutChart segments={apptMix.map((m) => ({ label: TYPE_LABEL[m.type][lang], value: m.value, color: MIX_COLOR[m.type] }))} />
+                    <DonutChart segments={apptMix.map((m) => ({ label: typeLabel(m.type, profession)[lang], value: m.value, color: MIX_COLOR[m.type] }))} />
                     <span className="absolute inset-0 grid place-items-center text-center">
                       <span className="block tnum text-xl font-bold leading-none">{apptMix.reduce((s, m) => s + m.value, 0)}%</span>
                       <span className="mt-0.5 block text-[10px] text-muted-foreground">{lang === "tr" ? "son 30 gün" : "last 30 days"}</span>
@@ -429,7 +429,7 @@ export function DashboardClient({
                     {apptMix.map((m) => (
                       <div key={m.type} className="flex items-center gap-2 text-[12.5px]">
                         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: MIX_COLOR[m.type] }} />
-                        <span className="flex-1 truncate">{TYPE_LABEL[m.type][lang]}</span>
+                        <span className="flex-1 truncate">{typeLabel(m.type, profession)[lang]}</span>
                         <span className="tnum font-semibold text-muted-foreground">{m.value}%</span>
                       </div>
                     ))}
@@ -441,7 +441,7 @@ export function DashboardClient({
 
           {/* Appointment calendar (compact week strip) + billing */}
           <div className={cn("grid gap-6", isAdmin && "lg:grid-cols-[1.5fr_1fr]")}>
-            <WeekStrip calendarEvents={calendarEvents} weekDays={weekDays} />
+            <WeekStrip calendarEvents={calendarEvents} weekDays={weekDays} profession={profession} />
             {/* Billing snapshot */}
             {isAdmin && (
               <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -484,7 +484,7 @@ export function DashboardClient({
           </aside>
         ) : (
           <aside className="animate-float-up space-y-5 xl:sticky xl:top-2 xl:self-start">
-            <WaitingRoom queue={queue} inRoom={inRoom} setInRoom={setInRoom} />
+            <WaitingRoom queue={queue} inRoom={inRoom} setInRoom={setInRoom} profession={profession} />
             {careKind ? <CareNotesPanel notes={recentCareNotes} kind={careKind} /> : <Prescriptions recentRx={recentRx} />}
             <ActivityFeed activity={activity} />
           </aside>
@@ -493,7 +493,7 @@ export function DashboardClient({
 
       {drawerOpen && selectedPatient && (
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <WaitingRoom queue={queue} inRoom={inRoom} setInRoom={setInRoom} />
+          <WaitingRoom queue={queue} inRoom={inRoom} setInRoom={setInRoom} profession={profession} />
           {careKind ? <CareNotesPanel notes={recentCareNotes} kind={careKind} /> : <Prescriptions recentRx={recentRx} />}
           <ActivityFeed activity={activity} />
         </div>
@@ -503,7 +503,17 @@ export function DashboardClient({
 }
 
 /* ── Waiting room / queue panel ───────────────────────────────────────────── */
-function WaitingRoom({ queue, inRoom, setInRoom }: { queue: QueueEntry[]; inRoom: string[]; setInRoom: (v: string[]) => void }) {
+function WaitingRoom({
+  queue,
+  inRoom,
+  setInRoom,
+  profession,
+}: {
+  queue: QueueEntry[];
+  inRoom: string[];
+  setInRoom: (v: string[]) => void;
+  profession?: string | null;
+}) {
   const { lang } = useLang();
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -526,7 +536,7 @@ function WaitingRoom({ queue, inRoom, setInRoom }: { queue: QueueEntry[]; inRoom
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-semibold leading-tight">{q.patient}</p>
                 <p className="truncate text-[11px] text-muted-foreground">
-                  {TYPE_LABEL[q.type][lang]} · {q.provider}
+                  {typeLabel(q.type, profession)[lang]} · {q.provider}
                 </p>
               </div>
               {called ? (
@@ -677,7 +687,7 @@ function ActivityFeed({ activity }: { activity: DActivity[] }) {
 }
 
 /* ── Compact appointment-calendar week strip ──────────────────────────────── */
-function WeekStrip({ calendarEvents, weekDays }: { calendarEvents: CalEvent[]; weekDays: WeekDay[] }) {
+function WeekStrip({ calendarEvents, weekDays, profession }: { calendarEvents: CalEvent[]; weekDays: WeekDay[]; profession?: string | null }) {
   const { lang } = useLang();
   const [day, setDay] = useState(weekDays.find((d) => d.today)?.key ?? weekDays[0]?.key ?? "mon");
   const events = calendarEvents.filter((e) => e.day === day);
@@ -741,7 +751,7 @@ function WeekStrip({ calendarEvents, weekDays }: { calendarEvents: CalEvent[]; w
               }}
             >
               <span className="block truncate font-semibold leading-tight">{ev.patient}</span>
-              <span className="block truncate text-muted-foreground">{TYPE_LABEL[ev.type][lang]}</span>
+              <span className="block truncate text-muted-foreground">{typeLabel(ev.type, profession)[lang]}</span>
             </div>
           );
         })}

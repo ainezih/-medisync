@@ -7,7 +7,7 @@ import { useLang } from "@/components/i18n/language-provider";
 import { StatusPill, TypeChip } from "@/components/app/clinic";
 import { Input, Label } from "@/components/ui/input";
 import { cn, formatTime, minutesOf } from "@/lib/utils";
-import { STATUS_LABEL, TYPE_LABEL, type CalEvent, type ScheduleSlot, type ApptType } from "@/lib/data/types";
+import { STATUS_LABEL, typeLabel, apptTypesFor, type CalEvent, type ScheduleSlot } from "@/lib/data/types";
 import type { WeekDay } from "@/lib/data/calendar";
 import { sendReminderAction, joinTelehealthAction, createAppointmentAction } from "@/app/(app)/appointments/actions";
 
@@ -16,25 +16,18 @@ const GRID_START = minutesOf("08:00");
 const GRID_END = minutesOf("16:00");
 const GRID_SPAN = GRID_END - GRID_START;
 
-const APPT_TYPE_OPTIONS: { value: ApptType; tr: string; en: string }[] = [
-  { value: "checkup", tr: "Kontrol", en: "Check-up" },
-  { value: "follow-up", tr: "Takip", en: "Follow-up" },
-  { value: "new-patient", tr: "Yeni hasta", en: "New patient" },
-  { value: "telehealth", tr: "Teletıp", en: "Telehealth" },
-  { value: "procedure", tr: "İşlem", en: "Procedure" },
-  { value: "vaccine", tr: "Aşı", en: "Vaccine" },
-];
-
 export function NewAppointmentModal({
   open,
   onClose,
   patientOptions,
   members,
+  profession,
 }: {
   open: boolean;
   onClose: () => void;
   patientOptions: { id: string; name: string }[];
   members: { id: string; name: string }[];
+  profession?: string | null;
 }) {
   const { lang } = useLang();
   const router = useRouter();
@@ -43,6 +36,7 @@ export function NewAppointmentModal({
 
   if (!open) return null;
 
+  const typeOptions = apptTypesFor(profession);
   const today = new Date();
   const defaultDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
@@ -139,10 +133,10 @@ export function NewAppointmentModal({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="na-type">{lang === "tr" ? "Tür" : "Type"}</Label>
-                <select id="na-type" name="type" defaultValue="checkup" className={selectCls}>
-                  {APPT_TYPE_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {lang === "tr" ? t.tr : t.en}
+                <select id="na-type" name="type" defaultValue={typeOptions[0]} className={selectCls}>
+                  {typeOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {typeLabel(value, profession)[lang]}
                     </option>
                   ))}
                 </select>
@@ -175,6 +169,7 @@ export function AppointmentsClient({
   weekDays,
   patientOptions,
   members,
+  profession,
 }: {
   calendarEvents: CalEvent[];
   schedule: ScheduleSlot[];
@@ -182,6 +177,7 @@ export function AppointmentsClient({
   weekDays: WeekDay[];
   patientOptions: { id: string; name: string }[];
   members: { id: string; name: string }[];
+  profession?: string | null;
 }) {
   const { lang } = useLang();
   const [view, setView] = useState<"week" | "day">("week");
@@ -290,12 +286,12 @@ export function AppointmentsClient({
       </div>
 
       {view === "week" ? (
-        <WeekGrid dayEvents={dayEvents} onSelect={selectEvent} weekDays={weekDays} />
+        <WeekGrid dayEvents={dayEvents} onSelect={selectEvent} weekDays={weekDays} profession={profession} />
       ) : (
-        <DayView day={activeDay} setDay={setActiveDay} events={dayEvents(activeDay)} onSelect={selectEvent} weekDays={weekDays} todayKey={todayKey} schedule={schedule} />
+        <DayView day={activeDay} setDay={setActiveDay} events={dayEvents(activeDay)} onSelect={selectEvent} weekDays={weekDays} todayKey={todayKey} schedule={schedule} profession={profession} />
       )}
 
-      <NewAppointmentModal open={showNew} onClose={() => setShowNew(false)} patientOptions={patientOptions} members={members} />
+      <NewAppointmentModal open={showNew} onClose={() => setShowNew(false)} patientOptions={patientOptions} members={members} profession={profession} />
 
 
       {/* Selected event detail */}
@@ -309,7 +305,7 @@ export function AppointmentsClient({
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-4">
             <Detail label={lang === "tr" ? "Hasta" : "Patient"} value={selected.patient} />
-            <Detail label={lang === "tr" ? "Tür" : "Type"} value={TYPE_LABEL[selected.type][lang]} />
+            <Detail label={lang === "tr" ? "Tür" : "Type"} value={typeLabel(selected.type, profession)[lang]} />
             <Detail label={lang === "tr" ? "Saat" : "Time"} value={`${formatTime(selected.start)} · ${selected.durationMin}m`} />
             <div>
               <p className="label-mono text-muted-foreground">{lang === "tr" ? "Durum" : "Status"}</p>
@@ -362,10 +358,12 @@ function WeekGrid({
   dayEvents,
   onSelect,
   weekDays,
+  profession,
 }: {
   dayEvents: (key: string) => CalEvent[];
   onSelect: (e: CalEvent) => void;
   weekDays: WeekDay[];
+  profession?: string | null;
 }) {
   const { lang } = useLang();
   return (
@@ -418,7 +416,7 @@ function WeekGrid({
                       }}
                     >
                       <span className="block truncate font-semibold leading-tight">{ev.patient}</span>
-                      <span className="block truncate text-muted-foreground">{TYPE_LABEL[ev.type][lang]}</span>
+                      <span className="block truncate text-muted-foreground">{typeLabel(ev.type, profession)[lang]}</span>
                     </button>
                   );
                 })}
@@ -440,6 +438,7 @@ function DayView({
   weekDays,
   todayKey,
   schedule,
+  profession,
 }: {
   day: string;
   setDay: (d: string) => void;
@@ -448,6 +447,7 @@ function DayView({
   weekDays: WeekDay[];
   todayKey: string;
   schedule: ScheduleSlot[];
+  profession?: string | null;
 }) {
   const { lang } = useLang();
   const agendaRows =
@@ -485,7 +485,7 @@ function DayView({
                 <span className="tnum w-12 shrink-0 text-[12px] font-semibold text-muted-foreground">{formatTime(s.time)}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold leading-tight">{s.patient}</p>
-                  <p className="text-[11px] text-muted-foreground">{TYPE_LABEL[s.type][lang]}</p>
+                  <p className="text-[11px] text-muted-foreground">{typeLabel(s.type, profession)[lang]}</p>
                 </div>
                 <StatusPill status={s.status} lang={lang} />
               </div>
@@ -530,7 +530,7 @@ function DayView({
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[12.5px] font-semibold leading-tight">{ev.patient}</span>
-                  <TypeChip type={ev.type} lang={lang} />
+                  <TypeChip type={ev.type} lang={lang} profession={profession} />
                 </div>
                 <span className="tnum text-[10.5px] text-muted-foreground">{formatTime(ev.start)} · {ev.durationMin}m</span>
               </button>

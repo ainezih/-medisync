@@ -1,8 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import type { DStat, RecentRx, RecentCareNote, CareNoteKind, DActivity, ApptType } from "@/lib/data/types";
 
+const PATIENTS_STAT_LABEL: Partial<Record<string, DStat["label"]>> = {
+  psychologist: { tr: "Aktif danışan", en: "Active clients" },
+  dietitian: { tr: "Aktif danışan", en: "Active clients" },
+};
+
 /** Top stat row — counts computed live, no fabricated week-over-week deltas. */
-export async function getStats(): Promise<DStat[]> {
+export async function getStats(profession?: string | null): Promise<DStat[]> {
   const supabase = await createClient();
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
@@ -24,7 +29,7 @@ export async function getStats(): Promise<DStat[]> {
 
   return [
     { key: "appts", label: { tr: "Bugünkü randevular", en: "Today's appointments" }, value: String(todayAppts.count ?? 0), icon: "calendar-days", tone: 1 },
-    { key: "patients", label: { tr: "Aktif hasta", en: "Active patients" }, value: String(activePatients.count ?? 0), icon: "users", tone: 2 },
+    { key: "patients", label: (profession && PATIENTS_STAT_LABEL[profession]) || { tr: "Aktif hasta", en: "Active patients" }, value: String(activePatients.count ?? 0), icon: "users", tone: 2 },
     { key: "revenue", label: { tr: "Bugünkü gelir", en: "Today's revenue" }, value: `$${revenueToday.toLocaleString("en-US")}`, icon: "dollar-sign", tone: 3 },
     { key: "noshows", label: { tr: "Gelmeyen (bu ay)", en: "No-shows (this mo.)" }, value: `${noShowRate.toFixed(1)}%`, icon: "user-x", tone: 4 },
   ];
