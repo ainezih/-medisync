@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Plus } from "lucide-react";
+import { Bell, Clock, Plus } from "lucide-react";
 import appConfig from "@/app.config";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useLang } from "@/components/i18n/language-provider";
+import { cn } from "@/lib/utils";
+import type { TrialInfo } from "@/lib/trial";
 
-export function Topbar() {
+export function Topbar({ trial }: { trial?: TrialInfo | null }) {
   const pathname = usePathname();
   const { t, lang } = useLang();
   const current =
@@ -21,6 +23,19 @@ export function Topbar() {
       </span>
 
       <div className="ml-auto flex items-center gap-1.5">
+        {trial && trial.status === "trialing" && (
+          <span
+            className={cn(
+              "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium sm:inline-flex",
+              trial.daysLeft <= 3 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {lang === "tr"
+              ? `Deneme: ${Math.max(trial.daysLeft, 0)} gün kaldı`
+              : `Trial: ${Math.max(trial.daysLeft, 0)} day${trial.daysLeft === 1 ? "" : "s"} left`}
+          </span>
+        )}
         <Link
           href="/appointments"
           className="hidden h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 sm:inline-flex"
