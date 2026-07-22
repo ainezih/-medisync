@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAppointmentForAction, setDailyRoomUrl } from "@/lib/data/appointments";
-import { sendAppointmentReminder } from "@/lib/twilio/send-reminder";
+import { sendAppointmentReminder, sendTelehealthLink } from "@/lib/twilio/send-reminder";
 import { createRoom } from "@/lib/daily/create-room";
 import { logActivity } from "@/lib/data/dashboard";
 
@@ -107,18 +107,58 @@ export async function sendReminderAction(appointmentId: string, lang: "tr" | "en
   }
 }
 
+function telehealthRoomExpiry(appt: { startsAt: string; durationMin: number }) {
+  // Keep the room open until well after the appointment ends — important
+  // when the link is created and sent well ahead of the actual visit.
+  return new Date(new Date(appt.startsAt).getTime() + appt.durationMin * 60_000 + 60 * 60_000);
+}
+
 export async function joinTelehealthAction(appointmentId: string) {
   const appt = await getAppointmentForAction(appointmentId);
   if (appt.dailyRoomUrl) {
     return { ok: true as const, url: appt.dailyRoomUrl };
   }
   try {
-    const room = await createRoom(`clinica-${appointmentId}`);
+    const room = await createRoom(`clinica-${appointmentId}`, telehealthRoomExpiry(appt));
     await setDailyRoomUrl(appointmentId, room.url);
     await logActivity("System", "created a telehealth room for", appt.patient, "info");
     revalidatePath("/dashboard");
     revalidatePath("/appointments");
     return { ok: true as const, url: room.url };
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function sendTelehealthLinkAction(appointmentId: string, lang: "tr" | "en" = "tr") {
+  const appt = await getAppointmentForAction(appointmentId);
+  if (!appt.patientPhone) {
+    return { ok: false as const, error: lang === "tr" ? "Hastanın telefon numarası kayıtlı değil." : "Patient has no phone number on file." };
+  }
+  try {
+    let url = appt.dailyRoomUrl;
+    if (!url) {
+      const room = await createRoom(`clinica-${appointmentId}`, telehealthRoomExpiry(appt));
+      await setDailyRoomUrl(appointmentId, room.url);
+      url = room.url;
+    }
+    const { channel } = await sendTelehealthLink({
+      to: appt.patientPhone,
+      patientName: appt.patient,
+      startsAt: appt.startsAt,
+      url,
+      lang,
+    });
+    const channelLabel = channel === "whatsapp" ? "WhatsApp" : "SMS";
+    await logActivity(
+      "System",
+      lang === "tr" ? `${channelLabel} ile görüntülü görüşme linki gönderdi:` : `sent a ${channelLabel} video link to`,
+      appt.patient,
+      "info",
+    );
+    revalidatePath("/dashboard");
+    revalidatePath("/appointments");
+    return { ok: true as const, url };
   } catch (e) {
     return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
   }

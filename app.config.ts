@@ -208,7 +208,7 @@ export const appConfig: AppConfig = {
       label: { tr: "Klinik İş Akışı", en: "Clinical" },
       items: [
         { label: { tr: "Reçeteler", en: "Prescriptions" }, href: "/patients", icon: "pill" },
-        { label: { tr: "Teletıp", en: "Telehealth" }, href: "/appointments", icon: "video", muted: true },
+        { label: { tr: "Teletıp", en: "Telehealth" }, href: "/appointments", icon: "video" },
         { label: { tr: "Laboratuvar", en: "Lab orders" }, href: "/patients", icon: "flask-conical", muted: true },
       ],
     },

@@ -1,0 +1,18 @@
+name: Appointment reminders
+
+# Vercel Hobby's own cron only fires once a day, which can't hit a
+# "1 hour before" window — so GitHub Actions is the scheduler instead. It
+# just pings the app's /api/cron/reminders endpoint, which does the real work.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call reminders endpoint
+        run: |
+          curl -sf -X GET "${{ secrets.REMINDERS_URL }}/api/cron/reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

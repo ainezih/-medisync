@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { DAY_KEY_BY_INDEX, timeOf } from "@/lib/data/calendar";
 import type { ScheduleSlot, QueueEntry, CalEvent, AppointmentRow, ApptType, ApptStatus } from "@/lib/data/types";
 
@@ -176,4 +176,89 @@ export async function setDailyRoomUrl(appointmentId: string, url: string): Promi
   const supabase = await createClient();
   const { error } = await supabase.from("appointments").update({ daily_room_url: url }).eq("id", appointmentId);
   if (error) throw new Error(`setDailyRoomUrl: ${error.message}`);
+}
+
+export type ReminderKind = "24h" | "1h";
+
+export type ReminderDue = {
+  id: string;
+  clinicId: string;
+  patient: string;
+  patientPhone: string;
+  provider: string;
+  startsAt: string;
+  durationMin: number;
+  type: ApptType;
+  dailyRoomUrl: string | null;
+};
+
+/**
+ * Appointments whose 24h-before or 1h-before reminder window has just
+ * arrived and hasn't been sent yet. Cross-clinic (service-role client, no
+ * RLS) — only ever called from the reminders cron route, never from a
+ * user-facing action.
+ *
+ * The window is [target - 15min, target) so a job running every ~15 minutes
+ * catches each appointment's reminder exactly once as "now" advances.
+ */
+export async function getAppointmentsDueForReminder(kind: ReminderKind): Promise<ReminderDue[]> {
+  const supabase = createAdminClient();
+  const sentColumn = kind === "24h" ? "reminder_24h_sent_at" : "reminder_1h_sent_at";
+  const targetMs = kind === "24h" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+  const now = Date.now();
+  const windowStart = new Date(now + targetMs - 15 * 60 * 1000).toISOString();
+  const windowEnd = new Date(now + targetMs).toISOString();
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("id, clinic_id, provider, starts_at, duration_min, type, daily_room_url, patients(name, phone)")
+    .is(sentColumn, null)
+    .gte("starts_at", windowStart)
+    .lt("starts_at", windowEnd)
+    .not("status", "in", "(done,no-show)");
+  if (error) throw new Error(`getAppointmentsDueForReminder: ${error.message}`);
+
+  type Row = {
+    id: string;
+    clinic_id: string;
+    provider: string;
+    starts_at: string;
+    duration_min: number;
+    type: ApptType;
+    daily_room_url: string | null;
+    patients: { name: string; phone: string | null } | { name: string; phone: string | null }[] | null;
+  };
+
+  return ((data ?? []) as unknown as Row[])
+    .map((r) => {
+      const p = Array.isArray(r.patients) ? r.patients[0] : r.patients;
+      return {
+        id: r.id,
+        clinicId: r.clinic_id,
+        patient: p?.name ?? "",
+        patientPhone: p?.phone ?? "",
+        provider: r.provider,
+        startsAt: r.starts_at,
+        durationMin: r.duration_min,
+        type: r.type,
+        dailyRoomUrl: r.daily_room_url,
+      };
+    })
+    .filter((r) => r.patientPhone);
+}
+
+export async function markReminderSent(appointmentId: string, kind: ReminderKind): Promise<void> {
+  const supabase = createAdminClient();
+  const column = kind === "24h" ? "reminder_24h_sent_at" : "reminder_1h_sent_at";
+  const { error } = await supabase
+    .from("appointments")
+    .update({ [column]: new Date().toISOString() })
+    .eq("id", appointmentId);
+  if (error) throw new Error(`markReminderSent: ${error.message}`);
+}
+
+export async function setDailyRoomUrlAdmin(appointmentId: string, url: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("appointments").update({ daily_room_url: url }).eq("id", appointmentId);
+  if (error) throw new Error(`setDailyRoomUrlAdmin: ${error.message}`);
 }

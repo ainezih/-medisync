@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, LayoutGrid, MessageSquareText, Video, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, LayoutGrid, MessageSquareText, Video, Send, Loader2, X } from "lucide-react";
 import { useLang } from "@/components/i18n/language-provider";
 import { StatusPill, TypeChip } from "@/components/app/clinic";
 import { Input, Label } from "@/components/ui/input";
 import { cn, formatTime, minutesOf } from "@/lib/utils";
 import { STATUS_LABEL, typeLabel, apptTypesFor, type CalEvent, type ScheduleSlot } from "@/lib/data/types";
 import type { WeekDay } from "@/lib/data/calendar";
-import { sendReminderAction, joinTelehealthAction, createAppointmentAction } from "@/app/(app)/appointments/actions";
+import { sendReminderAction, joinTelehealthAction, sendTelehealthLinkAction, createAppointmentAction } from "@/app/(app)/appointments/actions";
 
 const CALENDAR_HOURS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
 const GRID_START = minutesOf("08:00");
@@ -221,6 +221,19 @@ export function AppointmentsClient({
     });
   }
 
+  function handleSendTelehealthLink() {
+    if (!selected) return;
+    setActionMsg(null);
+    startTransition(async () => {
+      const res = await sendTelehealthLinkAction(selected.id, lang);
+      setActionMsg(
+        res.ok
+          ? { tone: "success", text: lang === "tr" ? "Görüntülü görüşme linki hastaya gönderildi." : "Video link sent to the patient." }
+          : { tone: "error", text: res.error ?? (lang === "tr" ? "Gönderilemedi." : "Failed to send.") },
+      );
+    });
+  }
+
   return (
     <div className="mx-auto max-w-[1500px] animate-fade-in space-y-6">
       {/* Header */}
@@ -323,14 +336,24 @@ export function AppointmentsClient({
               {lang === "tr" ? "SMS hatırlatma gönder" : "Send SMS reminder"}
             </button>
             {selected.type === "telehealth" && (
-              <button
-                onClick={handleJoinTelehealth}
-                disabled={pending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
-                {lang === "tr" ? "Görüntülü katıl" : "Join video"}
-              </button>
+              <>
+                <button
+                  onClick={handleSendTelehealthLink}
+                  disabled={pending}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-pill transition-colors hover:bg-muted disabled:opacity-60"
+                >
+                  {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 text-muted-foreground" />}
+                  {lang === "tr" ? "Hastaya linki gönder" : "Send link to patient"}
+                </button>
+                <button
+                  onClick={handleJoinTelehealth}
+                  disabled={pending}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
+                  {lang === "tr" ? "Görüntülü katıl" : "Join video"}
+                </button>
+              </>
             )}
             {actionMsg && (
               <span className={cn("text-[12.5px] font-medium", actionMsg.tone === "success" ? "text-success" : "text-destructive")}>
